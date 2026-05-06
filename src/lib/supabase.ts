@@ -22,3 +22,13 @@ export type Job = {
   required_career_years: number | null;
   created_at: string;
 };
+
+export type Match = {
+  id: number;
+  senior_id: number;
+  job_id: number;
+  score: number;
+  status: "pending" | "assigned" | "done";
+  created_at: string;
+  updated_at: string;
+};

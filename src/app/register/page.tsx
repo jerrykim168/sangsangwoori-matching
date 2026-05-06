@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/lib/supabase";
+import { recalculateForSenior } from "@/lib/matching";
 
 const REGIONS = ["서울", "경기", "인천", "기타"];
 const JOB_TYPES = ["경비", "청소", "조리", "돌봄", "기타"];
@@ -32,7 +34,7 @@ const INITIAL: FormState = { name: "", region: "", desired_job: "", career_years
 export default function RegisterPage() {
   const [form, setForm] = useState<FormState>(INITIAL);
   const [errors, setErrors] = useState<Errors>({});
-  const [success, setSuccess] = useState(false);
+  const [newSeniorId, setNewSeniorId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
 
@@ -46,7 +48,7 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSuccess(false);
+    setNewSeniorId(null);
     setServerError("");
 
     const errs = validate();
@@ -57,21 +59,28 @@ export default function RegisterPage() {
     setErrors({});
     setSubmitting(true);
 
-    const { error } = await supabase.from("seniors").insert({
-      name: form.name.trim(),
-      region: form.region,
-      desired_job: form.desired_job,
-      career_years: form.career_years ? Number(form.career_years) : null,
-    });
+    const { data, error } = await supabase
+      .from("seniors")
+      .insert({
+        name: form.name.trim(),
+        region: form.region,
+        desired_job: form.desired_job,
+        career_years: form.career_years ? Number(form.career_years) : null,
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      setServerError("저장 중 오류가 발생했습니다: " + (error?.message ?? "알 수 없는 오류"));
+      setSubmitting(false);
+      return;
+    }
+
+    await recalculateForSenior(data.id);
 
     setSubmitting(false);
-
-    if (error) {
-      setServerError("저장 중 오류가 발생했습니다: " + error.message);
-    } else {
-      setSuccess(true);
-      setForm(INITIAL);
-    }
+    setNewSeniorId(data.id);
+    setForm(INITIAL);
   }
 
   return (
@@ -81,10 +90,16 @@ export default function RegisterPage() {
         정보를 입력하시면 맞는 일자리를 찾아 드립니다.
       </p>
 
-      {success && (
+      {newSeniorId !== null && (
         <Alert className="mb-6 border-green-500 bg-green-50 text-green-800">
-          <AlertDescription className="text-xl font-semibold">
-            등록이 완료되었습니다 ✓
+          <AlertDescription className="text-xl font-semibold flex flex-col gap-3">
+            <span>등록이 완료되었습니다 ✓ 매칭 점수를 계산했습니다.</span>
+            <Link
+              href={`/recommendations?senior_id=${newSeniorId}`}
+              className="inline-block text-lg font-bold underline underline-offset-4 text-green-700 hover:text-green-900"
+            >
+              내 추천 일자리 보기 →
+            </Link>
           </AlertDescription>
         </Alert>
       )}
@@ -109,9 +124,7 @@ export default function RegisterPage() {
               </Label>
               {errors.name && (
                 <Alert className="border-red-400 bg-red-50 py-2">
-                  <AlertDescription className="text-base text-red-700">
-                    {errors.name}
-                  </AlertDescription>
+                  <AlertDescription className="text-base text-red-700">{errors.name}</AlertDescription>
                 </Alert>
               )}
               <Input
@@ -131,23 +144,16 @@ export default function RegisterPage() {
               </Label>
               {errors.region && (
                 <Alert className="border-red-400 bg-red-50 py-2">
-                  <AlertDescription className="text-base text-red-700">
-                    {errors.region}
-                  </AlertDescription>
+                  <AlertDescription className="text-base text-red-700">{errors.region}</AlertDescription>
                 </Alert>
               )}
-              <Select
-                value={form.region}
-                onValueChange={(v) => setForm({ ...form, region: v ?? "" })}
-              >
+              <Select value={form.region} onValueChange={(v) => setForm({ ...form, region: v ?? "" })}>
                 <SelectTrigger id="region" className="h-14 text-xl border-2 border-gray-300 px-4">
                   <SelectValue placeholder="지역을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
                   {REGIONS.map((r) => (
-                    <SelectItem key={r} value={r} className="text-xl py-3">
-                      {r}
-                    </SelectItem>
+                    <SelectItem key={r} value={r} className="text-xl py-3">{r}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -160,23 +166,16 @@ export default function RegisterPage() {
               </Label>
               {errors.desired_job && (
                 <Alert className="border-red-400 bg-red-50 py-2">
-                  <AlertDescription className="text-base text-red-700">
-                    {errors.desired_job}
-                  </AlertDescription>
+                  <AlertDescription className="text-base text-red-700">{errors.desired_job}</AlertDescription>
                 </Alert>
               )}
-              <Select
-                value={form.desired_job}
-                onValueChange={(v) => setForm({ ...form, desired_job: v ?? "" })}
-              >
+              <Select value={form.desired_job} onValueChange={(v) => setForm({ ...form, desired_job: v ?? "" })}>
                 <SelectTrigger id="desired_job" className="h-14 text-xl border-2 border-gray-300 px-4">
                   <SelectValue placeholder="직종을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
                   {JOB_TYPES.map((j) => (
-                    <SelectItem key={j} value={j} className="text-xl py-3">
-                      {j}
-                    </SelectItem>
+                    <SelectItem key={j} value={j} className="text-xl py-3">{j}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -204,7 +203,7 @@ export default function RegisterPage() {
               disabled={submitting}
               className="h-16 text-2xl font-bold mt-2 bg-blue-700 hover:bg-blue-800 text-white"
             >
-              {submitting ? "저장 중…" : "등록하기"}
+              {submitting ? "저장 및 매칭 계산 중…" : "등록하기"}
             </Button>
           </form>
         </CardContent>
