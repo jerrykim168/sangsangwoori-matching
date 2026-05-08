@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Noto_Sans_KR } from "next/font/google";
+import { Geist, Noto_Sans_KR, Black_Han_Sans } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 
@@ -14,6 +14,12 @@ const notoSansKR = Noto_Sans_KR({
   weight: ["400", "500", "700"],
 });
 
+const blackHanSans = Black_Han_Sans({
+  variable: "--font-black-han-sans",
+  subsets: ["latin"],
+  weight: ["400"],
+});
+
 export const metadata: Metadata = {
   title: "상상우리 매칭 시스템",
   description: "시니어 일자리 자동 매칭 서비스",
@@ -25,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`${geistSans.variable} ${notoSansKR.variable} h-full antialiased`}>
+    <html lang="ko" className={`${geistSans.variable} ${notoSansKR.variable} ${blackHanSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-white text-gray-900">
         <header className="bg-blue-700 text-white shadow-md">
           <nav className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-8">
