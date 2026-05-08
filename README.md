@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 상상우리 시니어 매칭 시스템
 
-## Getting Started
+시니어가 프로필을 등록하면 규칙 기반 점수 계산으로 적합한 일자리를 자동 매칭하고, 담당자 대시보드에서 추천 목록을 확인할 수 있는 내부 관리 웹앱입니다.
 
-First, run the development server:
+## 기술 스택
+
+| 영역 | 기술 |
+|---|---|
+| 프레임워크 | Next.js 16 (App Router) · React 19 |
+| 스타일 | Tailwind CSS v4 · shadcn/ui |
+| 백엔드 | Supabase (PostgreSQL · PostgREST · PL/pgSQL RPC) |
+| 테스트 | Playwright (E2E) |
+
+## 주요 기능
+
+- **프로필 등록** (`/register`) — 이름·지역·희망 직종·경력 입력 후 제출 시 자동 매칭 점수 계산
+- **추천 목록** (`/recommendations?senior_id=N`) — 매칭 점수 높은 순 정렬, 6점 금색·4점 초록·2점 회색 배지
+- **담당자 대시보드** (`/admin`) — 미매칭·매칭 대기·배정 완료 통계, 일자리 등록·삭제
+
+## 매칭 점수 기준 (최대 6점)
+
+| 조건 | 점수 |
+|---|---|
+| 지역 일치 | +3 |
+| 희망 직종 일치 | +2 |
+| 경력 요건 충족 (또는 요건 없음) | +1 |
+
+## 로컬 실행
 
 ```bash
+# 의존성 설치
+npm install
+
+# 환경 변수 설정 (.env.local)
+NEXT_PUBLIC_SUPABASE_URL=<프로젝트 URL>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon 키>
+
+# 개발 서버 기동
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 [http://localhost:3000](http://localhost:3000) 접속
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## DB 초기화
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`supabase/schema.sql` 전체를 Supabase 대시보드 **SQL Editor**에서 실행합니다.
 
-## Learn More
+- `seniors` / `jobs` / `matches` 테이블 생성
+- `updated_at` 자동 갱신 트리거
+- `recalculate_matches_for_senior` / `recalculate_matches_for_job` RPC 함수
+- RLS 비활성화 (내부 관리 앱)
 
-To learn more about Next.js, take a look at the following resources:
+## E2E 테스트
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# 브라우저 바이너리 최초 1회 설치
+npx playwright install chromium
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 테스트 실행 (dev 서버 자동 기동)
+npx playwright test
+```
 
-## Deploy on Vercel
+| 파일 | 시나리오 |
+|---|---|
+| `tests/normal.spec.ts` | 서울/경비/5년 등록 → 성공 알림 + 6점 amber 배지 |
+| `tests/invalid.spec.ts` | 이름 미입력 → 빨간 안내 박스 + DB 미삽입 확인 |
+| `tests/no-match.spec.ts` | 조건 불일치 공고만 있을 때 "매칭 없음" 안내 박스 |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 프로젝트 구조
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── page.tsx              # 홈 (등록 페이지로 리다이렉트)
+│   ├── register/page.tsx     # 시니어 프로필 등록
+│   ├── recommendations/      # 추천 일자리 목록
+│   └── admin/page.tsx        # 담당자 대시보드
+├── lib/
+│   ├── supabase.ts           # Supabase 클라이언트 · 타입 정의
+│   └── matching.ts           # 점수 계산 · 매칭 재계산 로직
+supabase/
+└── schema.sql                # DB 스키마 (테이블·RPC·트리거)
+tests/
+├── helpers/db.ts             # 테스트용 DB 리셋 유틸
+├── normal.spec.ts
+├── invalid.spec.ts
+└── no-match.spec.ts
+```
