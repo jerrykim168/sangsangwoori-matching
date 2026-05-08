@@ -6,7 +6,15 @@
       "Bash(npx eslint *)",
       "Bash(git add *)",
       "Bash(git reset *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_close",
+      "PowerShell(ls -Path \"C:\\\\AI_vibe-coding\\\\sangsangwoori-matching\" | % { $_.Name })",
+      "Bash(npm install *)",
+      "Bash(npx playwright *)"
     ]
   }
 }
