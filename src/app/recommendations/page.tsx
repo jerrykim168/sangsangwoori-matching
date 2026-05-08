@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -23,6 +23,44 @@ function scoreBadge(score: number) {
   if (score >= 4) return "bg-green-100 text-green-700 border border-green-300";
   if (score >= 2) return "bg-gray-100 text-gray-600 border border-gray-300";
   return "bg-gray-50 text-gray-400 border border-gray-200";
+}
+
+function SeniorPicker() {
+  const router = useRouter();
+  const [seniors, setSeniors] = useState<Senior[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("seniors")
+      .select("*")
+      .order("name")
+      .then(({ data }) => {
+        setSeniors((data as Senior[]) ?? []);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p className="text-2xl text-gray-400 text-center py-20">불러오는 중…</p>;
+
+  return (
+    <div>
+      <h1 className="text-4xl font-bold mb-2 text-gray-900">추천 일자리 목록</h1>
+      <p className="text-xl text-gray-500 mb-8">추천을 확인할 시니어를 선택해 주세요.</p>
+      <div className="flex flex-col gap-3">
+        {seniors.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => router.push(`/recommendations?senior_id=${s.id}`)}
+            className="text-left border-2 border-gray-100 hover:border-blue-300 rounded-xl px-6 py-4 transition-colors bg-white shadow-sm"
+          >
+            <span className="text-xl font-bold text-gray-900">{s.name}</span>
+            <span className="ml-3 text-lg text-gray-500">{s.region} · {s.desired_job} · 경력 {s.career_years}년</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function RecommendationsContent() {
@@ -61,17 +99,7 @@ function RecommendationsContent() {
     load();
   }, [seniorId]);
 
-  if (!seniorId) {
-    return (
-      <Alert className="border-blue-300 bg-blue-50">
-        <AlertDescription className="text-xl text-blue-700">
-          URL에 <code className="font-mono bg-blue-100 px-1 rounded">?senior_id=숫자</code>를 붙여 접속해 주세요.
-          <br />
-          <span className="text-base text-blue-500 mt-1 block">예: /recommendations?senior_id=1</span>
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  if (!seniorId) return <SeniorPicker />;
 
   if (loading) {
     return <p className="text-2xl text-gray-400 text-center py-20">불러오는 중…</p>;
