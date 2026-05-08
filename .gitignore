@@ -45,6 +45,7 @@ yarn-error.log*
 
 # 임시 검증 스크린샷
 check-*.png
+*-verify.png
 
 # typescript
 *.tsbuildinfo
