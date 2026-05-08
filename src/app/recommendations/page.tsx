@@ -139,8 +139,47 @@ function RecommendationsContent() {
         </Alert>
       ) : (
         <>
-          {/* 시트형 테이블 */}
-          <div className="overflow-x-auto rounded-xl border-2 border-gray-200 shadow-sm">
+          {/* 모바일: 카드형 */}
+          <div className="flex flex-col gap-3 sm:hidden">
+            {displayed.map((m, i) => {
+              const job = m.jobs;
+              if (!job) return null;
+              const detail = senior ? scoreDetail(senior, job) : null;
+              return (
+                <div key={m.id} className="rounded-xl border-2 border-gray-100 bg-white shadow-sm px-4 py-3">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-bold text-gray-300 w-5">{i + 1}</span>
+                      <span className="text-base font-semibold text-gray-900">{job.title}</span>
+                    </div>
+                    <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${scoreBadge(m.score)}`}>
+                      {m.score}점
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-2 pl-7">
+                    <Badge variant="secondary" className="text-sm px-2 py-0.5">{job.region}</Badge>
+                    <Badge variant="outline" className="text-sm px-2 py-0.5">{job.job_type}</Badge>
+                  </div>
+                  {detail && (
+                    <div className="flex flex-wrap gap-1.5 pl-7">
+                      <span className={`text-xs px-2 py-0.5 rounded ${detail.regionMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+                        지역 {detail.regionMatch ? "+3 ✓" : "+0"}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${detail.jobMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+                        직종 {detail.jobMatch ? "+2 ✓" : "+0"}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${detail.careerMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+                        경력 {detail.careerMatch ? "+1 ✓" : "+0"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 데스크톱: 시트형 테이블 */}
+          <div className="hidden sm:block overflow-x-auto rounded-xl border-2 border-gray-200 shadow-sm">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b-2 border-gray-200">
@@ -162,34 +201,19 @@ function RecommendationsContent() {
                       key={m.id}
                       className="border-b border-gray-100 hover:bg-blue-50 transition-colors"
                     >
-                      {/* 순위 */}
-                      <td className="px-4 py-4 text-xl font-bold text-gray-300 text-center">
-                        {i + 1}
-                      </td>
-
-                      {/* 일자리명 */}
-                      <td className="px-4 py-4 text-lg font-semibold text-gray-900">
-                        {job.title}
-                      </td>
-
-                      {/* 지역 */}
+                      <td className="px-4 py-4 text-xl font-bold text-gray-300 text-center">{i + 1}</td>
+                      <td className="px-4 py-4 text-lg font-semibold text-gray-900">{job.title}</td>
                       <td className="px-4 py-4">
                         <Badge variant="secondary" className="text-base px-3 py-1">{job.region}</Badge>
                       </td>
-
-                      {/* 직종 */}
                       <td className="px-4 py-4">
                         <Badge variant="outline" className="text-base px-3 py-1">{job.job_type}</Badge>
                       </td>
-
-                      {/* 매칭점수 */}
                       <td className="px-4 py-4 text-center">
                         <span className={`text-lg font-bold px-3 py-1 rounded-full ${scoreBadge(m.score)}`}>
                           {m.score}점
                         </span>
                       </td>
-
-                      {/* 점수내역 */}
                       <td className="px-4 py-4">
                         {detail && (
                           <div className="flex flex-wrap gap-2">
