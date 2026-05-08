@@ -11,7 +11,7 @@ export default function Home() {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
-              "url('https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1920&q=80')",
+              "url('https://images.pexels.com/photos/5990271/pexels-photo-5990271.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop')",
             filter: "grayscale(100%)",
           }}
         />
