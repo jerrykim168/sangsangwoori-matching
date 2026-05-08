@@ -8,6 +8,7 @@ export const supabase = createClient(
 export type Senior = {
   id: number;
   name: string;
+  phone: string | null;
   region: string;
   desired_job: string;
   career_years: number | null;

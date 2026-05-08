@@ -15,6 +15,7 @@ type MatchWithJob = {
     title: string;
     region: string;
     job_type: string;
+    required_career_years: number | null;
   } | null;
 };
 
@@ -23,6 +24,29 @@ function scoreBadge(score: number) {
   if (score >= 4) return "bg-green-100 text-green-700 border border-green-300";
   if (score >= 2) return "bg-gray-100 text-gray-600 border border-gray-300";
   return "bg-gray-50 text-gray-400 border border-gray-200";
+}
+
+function ScoreBreakdown({ senior, job }: { senior: Senior; job: MatchWithJob["jobs"] }) {
+  if (!job) return null;
+  const regionMatch = senior.region === job.region;
+  const jobMatch = senior.desired_job === job.job_type;
+  const careerMatch =
+    job.required_career_years === null ||
+    (senior.career_years !== null && senior.career_years >= job.required_career_years);
+
+  return (
+    <div className="flex flex-wrap gap-3 mt-2">
+      <span className={`text-sm px-2 py-0.5 rounded ${regionMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+        지역 {regionMatch ? "+3 ✓" : "+0"}
+      </span>
+      <span className={`text-sm px-2 py-0.5 rounded ${jobMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+        직종 {jobMatch ? "+2 ✓" : "+0"}
+      </span>
+      <span className={`text-sm px-2 py-0.5 rounded ${careerMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+        경력 {careerMatch ? "+1 ✓" : "+0"}
+      </span>
+    </div>
+  );
 }
 
 function SeniorPicker() {
@@ -55,7 +79,9 @@ function SeniorPicker() {
             className="text-left border-2 border-gray-100 hover:border-blue-300 rounded-xl px-6 py-4 transition-colors bg-white shadow-sm"
           >
             <span className="text-xl font-bold text-gray-900">{s.name}</span>
-            <span className="ml-3 text-lg text-gray-500">{s.region} · {s.desired_job} · 경력 {s.career_years}년</span>
+            <span className="ml-3 text-lg text-gray-500">
+              {s.region} · {s.desired_job} · 경력 {s.career_years ?? 0}년
+            </span>
           </button>
         ))}
       </div>
@@ -83,7 +109,7 @@ function RecommendationsContent() {
         supabase.from("seniors").select("*").eq("id", seniorId!).single(),
         supabase
           .from("matches")
-          .select("id, score, status, jobs(title, region, job_type)")
+          .select("id, score, status, jobs(title, region, job_type, required_career_years)")
           .eq("senior_id", seniorId!)
           .gt("score", 0)
           .order("score", { ascending: false }),
@@ -119,9 +145,7 @@ function RecommendationsContent() {
     <div>
       <h1 className="text-4xl font-bold mb-2 text-gray-900">추천 일자리 목록</h1>
       <p className="text-xl text-gray-500 mb-8">
-        {senior && (
-          <span className="font-semibold text-gray-700">{senior.name}</span>
-        )}{" "}
+        {senior && <span className="font-semibold text-gray-700">{senior.name}</span>}{" "}
         님의 맞춤 추천 — 매칭 점수 높은 순서로 표시됩니다.
       </p>
 
@@ -154,13 +178,16 @@ function RecommendationsContent() {
                     </span>
                   </div>
                 </CardHeader>
-                <CardContent className="flex gap-3 flex-wrap pl-11">
-                  <Badge variant="secondary" className="text-lg px-3 py-1">
-                    {job.region}
-                  </Badge>
-                  <Badge variant="outline" className="text-lg px-3 py-1">
-                    {job.job_type}
-                  </Badge>
+                <CardContent className="pl-11 flex flex-col gap-2">
+                  <div className="flex gap-3 flex-wrap">
+                    <Badge variant="secondary" className="text-lg px-3 py-1">
+                      {job.region}
+                    </Badge>
+                    <Badge variant="outline" className="text-lg px-3 py-1">
+                      {job.job_type}
+                    </Badge>
+                  </div>
+                  {senior && <ScoreBreakdown senior={senior} job={job} />}
                 </CardContent>
               </Card>
             );

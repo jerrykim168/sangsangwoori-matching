@@ -18,16 +18,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase, type Job } from "@/lib/supabase";
 import { recalculateForJob } from "@/lib/matching";
 
-const REGIONS = ["서울", "경기", "인천", "기타"];
-const JOB_TYPES = ["경비", "청소", "조리", "돌봄", "기타"];
+const REGIONS = ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "기타"];
+const JOB_TYPES = ["경비", "청소", "조리", "돌봄", "운전", "판매", "사무보조", "기타"];
 
 type SeniorRow = {
   id: number;
   name: string;
+  phone: string | null;
   region: string;
   desired_job: string;
   career_years: number | null;
-  matches: Array<{ score: number; status: string }>;
+  matches: Array<{ id: number; score: number; status: string }>;
 };
 
 type JobForm = {
@@ -42,9 +43,9 @@ type JobErrors = Partial<Record<keyof JobForm, string>>;
 const INITIAL_JOB: JobForm = { title: "", region: "", job_type: "", required_career_years: "" };
 
 function seniorStatus(matches: Array<{ score: number; status: string }>) {
-  const maxScore = matches.reduce((m, r) => Math.max(m, r.score), 0);
   const hasAssigned = matches.some((r) => r.status === "assigned" || r.status === "done");
   if (hasAssigned) return "배정완료";
+  const maxScore = matches.reduce((m, r) => Math.max(m, r.score), 0);
   if (maxScore > 0) return "매칭대기";
   return "미매칭";
 }
@@ -61,16 +62,29 @@ export default function AdminPage() {
   const [loadingSeniors, setLoadingSeniors] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(true);
 
+  // 새 일자리 등록 폼
   const [jobForm, setJobForm] = useState<JobForm>(INITIAL_JOB);
   const [jobErrors, setJobErrors] = useState<JobErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [jobSuccess, setJobSuccess] = useState(false);
   const [jobServerError, setJobServerError] = useState("");
 
+  // 일자리 인라인 수정
+  const [editJobId, setEditJobId] = useState<number | null>(null);
+  const [editJobForm, setEditJobForm] = useState<JobForm>(INITIAL_JOB);
+  const [savingJob, setSavingJob] = useState(false);
+
+  // 삭제 확인 상태
+  const [deleteJobConfirmId, setDeleteJobConfirmId] = useState<number | null>(null);
+  const [deleteSeniorConfirmId, setDeleteSeniorConfirmId] = useState<number | null>(null);
+
+  // 배정 완료 처리 중
+  const [assigningSeniorId, setAssigningSeniorId] = useState<number | null>(null);
+
   async function fetchSeniors() {
     const { data } = await supabase
       .from("seniors")
-      .select("id, name, region, desired_job, career_years, matches(score, status)")
+      .select("id, name, phone, region, desired_job, career_years, matches(id, score, status)")
       .order("created_at", { ascending: false });
     setSeniors((data as SeniorRow[]) ?? []);
     setLoadingSeniors(false);
@@ -101,6 +115,27 @@ export default function AdminPage() {
     return { unmatched, pending, assigned };
   }, [seniors]);
 
+  // ── 배정 완료 처리 ──
+  async function handleAssignSenior(senior: SeniorRow) {
+    setAssigningSeniorId(senior.id);
+    const bestMatch = (senior.matches ?? [])
+      .filter((m) => m.score > 0)
+      .sort((a, b) => b.score - a.score)[0];
+    if (bestMatch) {
+      await supabase.from("matches").update({ status: "assigned" }).eq("id", bestMatch.id);
+    }
+    setAssigningSeniorId(null);
+    fetchSeniors();
+  }
+
+  // ── 시니어 삭제 ──
+  async function handleDeleteSenior(id: number) {
+    await supabase.from("seniors").delete().eq("id", id);
+    setSeniors((prev) => prev.filter((s) => s.id !== id));
+    setDeleteSeniorConfirmId(null);
+  }
+
+  // ── 새 일자리 등록 ──
   function validateJob(): JobErrors {
     const e: JobErrors = {};
     if (!jobForm.title.trim()) e.title = "공고명을 입력해 주세요.";
@@ -113,12 +148,8 @@ export default function AdminPage() {
     e.preventDefault();
     setJobSuccess(false);
     setJobServerError("");
-
     const errs = validateJob();
-    if (Object.keys(errs).length > 0) {
-      setJobErrors(errs);
-      return;
-    }
+    if (Object.keys(errs).length > 0) { setJobErrors(errs); return; }
     setJobErrors({});
     setSubmitting(true);
 
@@ -128,9 +159,8 @@ export default function AdminPage() {
         title: jobForm.title.trim(),
         region: jobForm.region,
         job_type: jobForm.job_type,
-        required_career_years: jobForm.required_career_years
-          ? Number(jobForm.required_career_years)
-          : null,
+        required_career_years: jobForm.required_career_years !== ""
+          ? Number(jobForm.required_career_years) : null,
       })
       .select()
       .single();
@@ -140,19 +170,51 @@ export default function AdminPage() {
       setSubmitting(false);
       return;
     }
-
     await recalculateForJob(data.id);
-
     setSubmitting(false);
     setJobSuccess(true);
     setJobForm(INITIAL_JOB);
     fetchJobs();
-    fetchSeniors(); // 점수 재계산 후 시니어 목록도 갱신
+    fetchSeniors();
   }
 
+  // ── 일자리 수정 ──
+  function startEditJob(job: Job) {
+    setEditJobId(job.id);
+    setEditJobForm({
+      title: job.title,
+      region: job.region,
+      job_type: job.job_type,
+      required_career_years: job.required_career_years?.toString() ?? "",
+    });
+    setDeleteJobConfirmId(null);
+  }
+
+  async function handleSaveJob() {
+    if (!editJobId) return;
+    setSavingJob(true);
+    await supabase
+      .from("jobs")
+      .update({
+        title: editJobForm.title.trim(),
+        region: editJobForm.region,
+        job_type: editJobForm.job_type,
+        required_career_years: editJobForm.required_career_years !== ""
+          ? Number(editJobForm.required_career_years) : null,
+      })
+      .eq("id", editJobId);
+    await recalculateForJob(editJobId);
+    setSavingJob(false);
+    setEditJobId(null);
+    fetchJobs();
+    fetchSeniors();
+  }
+
+  // ── 일자리 삭제 ──
   async function handleDeleteJob(id: number) {
     await supabase.from("jobs").delete().eq("id", id);
     setJobs((prev) => prev.filter((j) => j.id !== id));
+    setDeleteJobConfirmId(null);
     fetchSeniors();
   }
 
@@ -161,7 +223,7 @@ export default function AdminPage() {
       <h1 className="text-4xl font-bold mb-2 text-gray-900">담당자 대시보드</h1>
       <p className="text-xl text-gray-500 mb-8">매칭 현황을 한눈에 확인하고 관리합니다.</p>
 
-      {/* ── 집계 카드 3개 ── */}
+      {/* 집계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <Card className="border-2 bg-red-50 border-red-200">
           <CardHeader className="pb-2">
@@ -176,7 +238,6 @@ export default function AdminPage() {
             <p className="text-gray-500 text-lg">아직 일자리가 연결되지 않은 시니어</p>
           </CardContent>
         </Card>
-
         <Card className="border-2 bg-yellow-50 border-yellow-200">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -190,7 +251,6 @@ export default function AdminPage() {
             <p className="text-gray-500 text-lg">매칭 완료, 담당자 확인 대기 중</p>
           </CardContent>
         </Card>
-
         <Card className="border-2 bg-green-50 border-green-200">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -206,7 +266,7 @@ export default function AdminPage() {
         </Card>
       </div>
 
-      {/* ── 시니어 목록 ── */}
+      {/* 시니어 목록 */}
       <section className="mb-12">
         <h2 className="text-3xl font-bold mb-4 border-b pb-3">
           시니어 목록{" "}
@@ -225,6 +285,7 @@ export default function AdminPage() {
               <thead>
                 <tr className="border-b-2 border-gray-200 text-gray-600">
                   <th className="text-left py-3 px-3">이름</th>
+                  <th className="text-left py-3 px-3">연락처</th>
                   <th className="text-left py-3 px-3">지역</th>
                   <th className="text-left py-3 px-3">희망 직종</th>
                   <th className="text-left py-3 px-3">최고 점수</th>
@@ -234,35 +295,70 @@ export default function AdminPage() {
               </thead>
               <tbody>
                 {seniors.map((s) => {
-                  const maxScore = (s.matches ?? []).reduce(
-                    (m, r) => Math.max(m, r.score),
-                    0
-                  );
+                  const maxScore = (s.matches ?? []).reduce((m, r) => Math.max(m, r.score), 0);
                   const st = seniorStatus(s.matches ?? []);
+                  const isDeleteConfirm = deleteSeniorConfirmId === s.id;
+
                   return (
-                    <tr
-                      key={s.id}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
+                    <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                       <td className="py-4 px-3 font-semibold">{s.name}</td>
+                      <td className="py-4 px-3 text-gray-600">{s.phone ?? "—"}</td>
                       <td className="py-4 px-3">{s.region}</td>
                       <td className="py-4 px-3">{s.desired_job}</td>
-                      <td className="py-4 px-3 font-bold text-blue-700">
-                        {maxScore}점
-                      </td>
+                      <td className="py-4 px-3 font-bold text-blue-700">{maxScore}점</td>
                       <td className="py-4 px-3">
-                        <span
-                          className={`text-base font-semibold px-3 py-1 rounded-full ${statusBadge(st)}`}
-                        >
+                        <span className={`text-base font-semibold px-3 py-1 rounded-full ${statusBadge(st)}`}>
                           {st}
                         </span>
                       </td>
-                      <td className="py-4 px-3 text-right">
-                        <Link href={`/recommendations?senior_id=${s.id}`}>
-                          <Button variant="outline" size="sm" className="text-base h-10 px-4">
-                            상세 보기
-                          </Button>
-                        </Link>
+                      <td className="py-4 px-3">
+                        {isDeleteConfirm ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-red-600 font-semibold">삭제할까요?</span>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-8 px-3 text-sm"
+                              onClick={() => handleDeleteSenior(s.id)}
+                            >
+                              확인
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-3 text-sm"
+                              onClick={() => setDeleteSeniorConfirmId(null)}
+                            >
+                              취소
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 justify-end">
+                            <Link href={`/recommendations?senior_id=${s.id}`}>
+                              <Button variant="outline" size="sm" className="text-base h-10 px-4">
+                                상세 보기
+                              </Button>
+                            </Link>
+                            {st === "매칭대기" && (
+                              <Button
+                                size="sm"
+                                className="h-10 px-3 text-sm bg-green-600 hover:bg-green-700 text-white"
+                                disabled={assigningSeniorId === s.id}
+                                onClick={() => handleAssignSenior(s)}
+                              >
+                                {assigningSeniorId === s.id ? "처리 중…" : "배정 완료"}
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-10 px-3 text-sm text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setDeleteSeniorConfirmId(s.id)}
+                            >
+                              삭제
+                            </Button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -273,7 +369,7 @@ export default function AdminPage() {
         )}
       </section>
 
-      {/* ── 일자리 관리 ── */}
+      {/* 일자리 관리 */}
       <section>
         <h2 className="text-3xl font-bold mb-6 border-b pb-3">일자리 관리</h2>
 
@@ -297,7 +393,6 @@ export default function AdminPage() {
 
             <form onSubmit={handleAddJob} noValidate>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
                 <div className="flex flex-col gap-2">
                   <Label className="text-lg font-semibold text-gray-700">
                     공고명 <span className="text-red-500">*</span>
@@ -385,7 +480,7 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        {/* 일자리 목록 */}
+        {/* 등록된 일자리 목록 */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-2xl">
@@ -413,29 +508,128 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {jobs.map((job) => (
-                      <tr
-                        key={job.id}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="py-4 px-2 font-semibold">{job.title}</td>
-                        <td className="py-4 px-2">{job.region}</td>
-                        <td className="py-4 px-2">{job.job_type}</td>
-                        <td className="py-4 px-2">
-                          {job.required_career_years != null ? `${job.required_career_years}년` : "—"}
-                        </td>
-                        <td className="py-4 px-2 text-right">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="text-base h-10 px-4"
-                            onClick={() => handleDeleteJob(job.id)}
-                          >
-                            삭제
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {jobs.map((job) => {
+                      const isEditing = editJobId === job.id;
+                      const isDeleteConfirm = deleteJobConfirmId === job.id;
+
+                      if (isEditing) {
+                        return (
+                          <tr key={job.id} className="border-b border-blue-100 bg-blue-50">
+                            <td className="py-3 px-2">
+                              <Input
+                                value={editJobForm.title}
+                                onChange={(e) => setEditJobForm({ ...editJobForm, title: e.target.value })}
+                                className="h-10 text-base border-gray-300"
+                              />
+                            </td>
+                            <td className="py-3 px-2">
+                              <Select value={editJobForm.region} onValueChange={(v) => setEditJobForm({ ...editJobForm, region: v ?? "" })}>
+                                <SelectTrigger className="h-10 text-base border-gray-300 w-28">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {REGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="py-3 px-2">
+                              <Select value={editJobForm.job_type} onValueChange={(v) => setEditJobForm({ ...editJobForm, job_type: v ?? "" })}>
+                                <SelectTrigger className="h-10 text-base border-gray-300 w-28">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {JOB_TYPES.map((j) => <SelectItem key={j} value={j}>{j}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="py-3 px-2">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={60}
+                                value={editJobForm.required_career_years}
+                                onChange={(e) => setEditJobForm({ ...editJobForm, required_career_years: e.target.value })}
+                                className="h-10 text-base border-gray-300 w-20"
+                                placeholder="—"
+                              />
+                            </td>
+                            <td className="py-3 px-2 text-right">
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  size="sm"
+                                  className="h-9 px-4 bg-blue-700 hover:bg-blue-800 text-white"
+                                  disabled={savingJob}
+                                  onClick={handleSaveJob}
+                                >
+                                  {savingJob ? "저장 중…" : "저장"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 px-4"
+                                  onClick={() => setEditJobId(null)}
+                                >
+                                  취소
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return (
+                        <tr key={job.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <td className="py-4 px-2 font-semibold">{job.title}</td>
+                          <td className="py-4 px-2">{job.region}</td>
+                          <td className="py-4 px-2">{job.job_type}</td>
+                          <td className="py-4 px-2">
+                            {job.required_career_years != null ? `${job.required_career_years}년` : "—"}
+                          </td>
+                          <td className="py-4 px-2 text-right">
+                            {isDeleteConfirm ? (
+                              <div className="flex items-center gap-2 justify-end">
+                                <span className="text-sm text-red-600 font-semibold">삭제할까요?</span>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-8 px-3 text-sm"
+                                  onClick={() => handleDeleteJob(job.id)}
+                                >
+                                  확인
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 px-3 text-sm"
+                                  onClick={() => setDeleteJobConfirmId(null)}
+                                >
+                                  취소
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 px-4 text-base"
+                                  onClick={() => startEditJob(job)}
+                                >
+                                  수정
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="h-9 px-4 text-base"
+                                  onClick={() => { setDeleteJobConfirmId(job.id); setEditJobId(null); }}
+                                >
+                                  삭제
+                                </Button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

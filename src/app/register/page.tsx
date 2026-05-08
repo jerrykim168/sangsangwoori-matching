@@ -17,11 +17,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/lib/supabase";
 import { recalculateForSenior } from "@/lib/matching";
 
-const REGIONS = ["서울", "경기", "인천", "기타"];
-const JOB_TYPES = ["경비", "청소", "조리", "돌봄", "기타"];
+const REGIONS = ["서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "기타"];
+const JOB_TYPES = ["경비", "청소", "조리", "돌봄", "운전", "판매", "사무보조", "기타"];
 
 type FormState = {
   name: string;
+  phone: string;
   region: string;
   desired_job: string;
   career_years: string;
@@ -29,7 +30,7 @@ type FormState = {
 
 type Errors = Partial<Record<keyof FormState, string>>;
 
-const INITIAL: FormState = { name: "", region: "", desired_job: "", career_years: "" };
+const INITIAL: FormState = { name: "", phone: "", region: "", desired_job: "", career_years: "" };
 
 export default function RegisterPage() {
   const [form, setForm] = useState<FormState>(INITIAL);
@@ -41,6 +42,7 @@ export default function RegisterPage() {
   function validate(): Errors {
     const e: Errors = {};
     if (!form.name.trim()) e.name = "이름을 입력해 주세요.";
+    if (!form.phone.trim()) e.phone = "연락처를 입력해 주세요.";
     if (!form.region) e.region = "지역을 선택해 주세요.";
     if (!form.desired_job) e.desired_job = "희망 직종을 선택해 주세요.";
     return e;
@@ -63,9 +65,10 @@ export default function RegisterPage() {
       .from("seniors")
       .insert({
         name: form.name.trim(),
+        phone: form.phone.trim(),
         region: form.region,
         desired_job: form.desired_job,
-        career_years: form.career_years ? Number(form.career_years) : null,
+        career_years: form.career_years !== "" ? Number(form.career_years) : null,
       })
       .select()
       .single();
@@ -133,6 +136,26 @@ export default function RegisterPage() {
                 placeholder="홍길동"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="h-14 text-xl border-2 border-gray-300 px-4"
+              />
+            </div>
+
+            {/* 연락처 */}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="phone" className="text-xl font-semibold text-gray-700">
+                연락처 <span className="text-red-500">*</span>
+              </Label>
+              {errors.phone && (
+                <Alert className="border-red-400 bg-red-50 py-2">
+                  <AlertDescription className="text-base text-red-700">{errors.phone}</AlertDescription>
+                </Alert>
+              )}
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="010-0000-0000"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 className="h-14 text-xl border-2 border-gray-300 px-4"
               />
             </div>

@@ -15,30 +15,42 @@ export default function Home() {
             filter: "grayscale(100%)",
           }}
         />
-        {/* 가독성을 위한 흰색 오버레이 */}
-        <div className="absolute inset-0 bg-white/55" />
+        {/* 오버레이 */}
+        <div className="absolute inset-0 bg-black/40" />
 
         {/* 콘텐츠 */}
         <div className="relative z-10 flex flex-col items-center gap-10 px-6">
           <h1
-            className="text-9xl font-bold text-blue-700 leading-tight"
-            style={{ fontFamily: "var(--font-black-han-sans)" }}
+            className="font-bold leading-tight drop-shadow-lg text-white"
+            style={{
+              fontSize: "6.4rem",
+              fontFamily: "'HY견고딕', 'HYGothic', var(--font-black-han-sans), sans-serif",
+            }}
           >
             시니어 일자리<br />매칭 서비스
           </h1>
-          <p className="text-2xl text-gray-700 max-w-xl">
+          <p
+            className="text-2xl text-gray-200 max-w-xl"
+            style={{ wordBreak: "keep-all" }}
+          >
             프로필을 등록하면 맞춤 일자리를 자동으로 추천해 드립니다.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Link
               href="/register"
-              className={cn(buttonVariants({ variant: "default" }), "h-14 px-10 text-xl")}
+              className={cn(
+                buttonVariants({ variant: "default" }),
+                "h-14 px-10 text-xl bg-white text-gray-900 hover:bg-gray-100 border-0"
+              )}
             >
               프로필 등록하기
             </Link>
             <Link
               href="/recommendations"
-              className={cn(buttonVariants({ variant: "outline" }), "h-14 px-10 text-xl")}
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "h-14 px-10 text-xl text-white border-2 border-white bg-transparent hover:bg-white/20"
+              )}
             >
               추천 목록 보기
             </Link>
