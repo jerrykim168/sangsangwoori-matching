@@ -6,17 +6,17 @@ export default function Home() {
   return (
     <div className="-mx-6 -mt-10">
       <div className="relative flex flex-col items-center justify-center min-h-[88vh] text-center overflow-hidden">
-        {/* 회색 배경 이미지 — 일자리를 찾는 사람들 */}
+        {/* 배경 이미지 */}
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
               "url('https://images.pexels.com/photos/5990271/pexels-photo-5990271.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop')",
-            filter: "grayscale(100%)",
+            filter: "brightness(0.85) saturate(0.8)",
           }}
         />
         {/* 오버레이 */}
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-black/35" />
 
         {/* 콘텐츠 */}
         <div className="relative z-10 flex flex-col items-center gap-10 px-6">
