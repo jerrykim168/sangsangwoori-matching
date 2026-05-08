@@ -5,7 +5,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { supabase, type Senior } from "@/lib/supabase";
+
+const TOP_N = 5;
 
 type MatchWithJob = {
   id: number;
@@ -98,12 +101,11 @@ function RecommendationsContent() {
   const [matches, setMatches] = useState<MatchWithJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    if (!seniorId) {
-      setLoading(false);
-      return;
-    }
+    setShowAll(false);
+    if (!seniorId) { setLoading(false); return; }
     async function load() {
       const [{ data: s, error: sErr }, { data: m }] = await Promise.all([
         supabase.from("seniors").select("*").eq("id", seniorId!).single(),
@@ -114,11 +116,8 @@ function RecommendationsContent() {
           .gt("score", 0)
           .order("score", { ascending: false }),
       ]);
-      if (sErr || !s) {
-        setNotFound(true);
-      } else {
-        setSenior(s as Senior);
-      }
+      if (sErr || !s) { setNotFound(true); }
+      else { setSenior(s as Senior); }
       setMatches((m as unknown as MatchWithJob[]) ?? []);
       setLoading(false);
     }
@@ -126,20 +125,17 @@ function RecommendationsContent() {
   }, [seniorId]);
 
   if (!seniorId) return <SeniorPicker />;
+  if (loading) return <p className="text-2xl text-gray-400 text-center py-20">불러오는 중…</p>;
+  if (notFound) return (
+    <Alert className="border-red-400 bg-red-50">
+      <AlertDescription className="text-xl text-red-700">
+        해당 시니어를 찾을 수 없습니다. (ID: {seniorId})
+      </AlertDescription>
+    </Alert>
+  );
 
-  if (loading) {
-    return <p className="text-2xl text-gray-400 text-center py-20">불러오는 중…</p>;
-  }
-
-  if (notFound) {
-    return (
-      <Alert className="border-red-400 bg-red-50">
-        <AlertDescription className="text-xl text-red-700">
-          해당 시니어를 찾을 수 없습니다. (ID: {seniorId})
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  const displayed = showAll ? matches : matches.slice(0, TOP_N);
+  const hiddenCount = matches.length - TOP_N;
 
   return (
     <div>
@@ -156,43 +152,56 @@ function RecommendationsContent() {
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="flex flex-col gap-4">
-          {matches.map((m, i) => {
-            const job = m.jobs;
-            if (!job) return null;
-            return (
-              <Card
-                key={m.id}
-                className="shadow-sm border-2 border-gray-100 hover:border-blue-200 transition-colors"
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl font-bold text-gray-300 w-8 text-center">
-                        {i + 1}
+        <>
+          <div className="flex flex-col gap-4">
+            {displayed.map((m, i) => {
+              const job = m.jobs;
+              if (!job) return null;
+              return (
+                <Card
+                  key={m.id}
+                  className="shadow-sm border-2 border-gray-100 hover:border-blue-200 transition-colors"
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl font-bold text-gray-300 w-8 text-center">
+                          {i + 1}
+                        </span>
+                        <CardTitle className="text-2xl">{job.title}</CardTitle>
+                      </div>
+                      <span className={`text-2xl font-bold px-4 py-1 rounded-full ${scoreBadge(m.score)}`}>
+                        {m.score}점
                       </span>
-                      <CardTitle className="text-2xl">{job.title}</CardTitle>
                     </div>
-                    <span className={`text-2xl font-bold px-4 py-1 rounded-full ${scoreBadge(m.score)}`}>
-                      {m.score}점
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent className="pl-11 flex flex-col gap-2">
-                  <div className="flex gap-3 flex-wrap">
-                    <Badge variant="secondary" className="text-lg px-3 py-1">
-                      {job.region}
-                    </Badge>
-                    <Badge variant="outline" className="text-lg px-3 py-1">
-                      {job.job_type}
-                    </Badge>
-                  </div>
-                  {senior && <ScoreBreakdown senior={senior} job={job} />}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                  </CardHeader>
+                  <CardContent className="pl-11 flex flex-col gap-2">
+                    <div className="flex gap-3 flex-wrap">
+                      <Badge variant="secondary" className="text-lg px-3 py-1">{job.region}</Badge>
+                      <Badge variant="outline" className="text-lg px-3 py-1">{job.job_type}</Badge>
+                    </div>
+                    {senior && <ScoreBreakdown senior={senior} job={job} />}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* 더 보기 / 접기 */}
+          {matches.length > TOP_N && (
+            <div className="mt-6 text-center">
+              <Button
+                variant="outline"
+                className="h-12 px-8 text-lg text-gray-600 border-gray-300"
+                onClick={() => setShowAll((v) => !v)}
+              >
+                {showAll
+                  ? "▲ 접기"
+                  : `▼ 낮은 점수 ${hiddenCount}건 더 보기`}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
