@@ -43,6 +43,9 @@ yarn-error.log*
 /test-results/
 /playwright-report/
 
+# 임시 검증 스크린샷
+check-*.png
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

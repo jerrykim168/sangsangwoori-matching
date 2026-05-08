@@ -14,7 +14,9 @@
       "mcp__playwright__browser_close",
       "PowerShell(ls -Path \"C:\\\\AI_vibe-coding\\\\sangsangwoori-matching\" | % { $_.Name })",
       "Bash(npm install *)",
-      "Bash(npx playwright *)"
+      "Bash(npx playwright *)",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_snapshot"
     ]
   }
 }
