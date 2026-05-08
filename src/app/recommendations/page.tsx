@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -29,27 +28,14 @@ function scoreBadge(score: number) {
   return "bg-gray-50 text-gray-400 border border-gray-200";
 }
 
-function ScoreBreakdown({ senior, job }: { senior: Senior; job: MatchWithJob["jobs"] }) {
+function scoreDetail(senior: Senior, job: MatchWithJob["jobs"]) {
   if (!job) return null;
   const regionMatch = senior.region === job.region;
   const jobMatch = senior.desired_job === job.job_type;
   const careerMatch =
     job.required_career_years === null ||
     (senior.career_years !== null && senior.career_years >= job.required_career_years);
-
-  return (
-    <div className="flex flex-wrap gap-3 mt-2">
-      <span className={`text-sm px-2 py-0.5 rounded ${regionMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
-        지역 {regionMatch ? "+3 ✓" : "+0"}
-      </span>
-      <span className={`text-sm px-2 py-0.5 rounded ${jobMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
-        직종 {jobMatch ? "+2 ✓" : "+0"}
-      </span>
-      <span className={`text-sm px-2 py-0.5 rounded ${careerMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
-        경력 {careerMatch ? "+1 ✓" : "+0"}
-      </span>
-    </div>
-  );
+  return { regionMatch, jobMatch, careerMatch };
 }
 
 function SeniorPicker() {
@@ -82,6 +68,9 @@ function SeniorPicker() {
             className="text-left border-2 border-gray-100 hover:border-blue-300 rounded-xl px-6 py-4 transition-colors bg-white shadow-sm"
           >
             <span className="text-xl font-bold text-gray-900">{s.name}</span>
+            {s.phone && (
+              <span className="ml-3 text-lg text-blue-600 font-medium">{s.phone}</span>
+            )}
             <span className="ml-3 text-lg text-gray-500">
               {s.region} · {s.desired_job} · 경력 {s.career_years ?? 0}년
             </span>
@@ -140,10 +129,17 @@ function RecommendationsContent() {
   return (
     <div>
       <h1 className="text-4xl font-bold mb-2 text-gray-900">추천 일자리 목록</h1>
-      <p className="text-xl text-gray-500 mb-8">
-        {senior && <span className="font-semibold text-gray-700">{senior.name}</span>}{" "}
-        님의 맞춤 추천 — 매칭 점수 높은 순서로 표시됩니다.
-      </p>
+      <div className="text-xl text-gray-500 mb-8 flex flex-wrap items-center gap-2">
+        {senior && (
+          <>
+            <span className="font-semibold text-gray-700">{senior.name}</span>
+            {senior.phone && (
+              <span className="text-blue-600 font-medium">{senior.phone}</span>
+            )}
+          </>
+        )}
+        <span>님의 맞춤 추천 — 매칭 점수 높은 순서로 표시됩니다.</span>
+      </div>
 
       {matches.length === 0 ? (
         <Alert className="border-gray-300 bg-gray-50">
@@ -153,38 +149,77 @@ function RecommendationsContent() {
         </Alert>
       ) : (
         <>
-          <div className="flex flex-col gap-4">
-            {displayed.map((m, i) => {
-              const job = m.jobs;
-              if (!job) return null;
-              return (
-                <Card
-                  key={m.id}
-                  className="shadow-sm border-2 border-gray-100 hover:border-blue-200 transition-colors"
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold text-gray-300 w-8 text-center">
-                          {i + 1}
+          {/* 시트형 테이블 */}
+          <div className="overflow-x-auto rounded-xl border-2 border-gray-200 shadow-sm">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b-2 border-gray-200">
+                  <th className="px-4 py-3 text-base font-semibold text-gray-500 w-12 text-center">순위</th>
+                  <th className="px-4 py-3 text-base font-semibold text-gray-500">일자리명</th>
+                  <th className="px-4 py-3 text-base font-semibold text-gray-500 w-24">지역</th>
+                  <th className="px-4 py-3 text-base font-semibold text-gray-500 w-24">직종</th>
+                  <th className="px-4 py-3 text-base font-semibold text-gray-500 w-24 text-center">매칭점수</th>
+                  <th className="px-4 py-3 text-base font-semibold text-gray-500">점수내역</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayed.map((m, i) => {
+                  const job = m.jobs;
+                  if (!job) return null;
+                  const detail = senior ? scoreDetail(senior, job) : null;
+                  return (
+                    <tr
+                      key={m.id}
+                      className="border-b border-gray-100 hover:bg-blue-50 transition-colors"
+                    >
+                      {/* 순위 */}
+                      <td className="px-4 py-4 text-xl font-bold text-gray-300 text-center">
+                        {i + 1}
+                      </td>
+
+                      {/* 일자리명 */}
+                      <td className="px-4 py-4 text-lg font-semibold text-gray-900">
+                        {job.title}
+                      </td>
+
+                      {/* 지역 */}
+                      <td className="px-4 py-4">
+                        <Badge variant="secondary" className="text-base px-3 py-1">{job.region}</Badge>
+                      </td>
+
+                      {/* 직종 */}
+                      <td className="px-4 py-4">
+                        <Badge variant="outline" className="text-base px-3 py-1">{job.job_type}</Badge>
+                      </td>
+
+                      {/* 매칭점수 */}
+                      <td className="px-4 py-4 text-center">
+                        <span className={`text-lg font-bold px-3 py-1 rounded-full ${scoreBadge(m.score)}`}>
+                          {m.score}점
                         </span>
-                        <CardTitle className="text-2xl">{job.title}</CardTitle>
-                      </div>
-                      <span className={`text-2xl font-bold px-4 py-1 rounded-full ${scoreBadge(m.score)}`}>
-                        {m.score}점
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pl-11 flex flex-col gap-2">
-                    <div className="flex gap-3 flex-wrap">
-                      <Badge variant="secondary" className="text-lg px-3 py-1">{job.region}</Badge>
-                      <Badge variant="outline" className="text-lg px-3 py-1">{job.job_type}</Badge>
-                    </div>
-                    {senior && <ScoreBreakdown senior={senior} job={job} />}
-                  </CardContent>
-                </Card>
-              );
-            })}
+                      </td>
+
+                      {/* 점수내역 */}
+                      <td className="px-4 py-4">
+                        {detail && (
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`text-sm px-2 py-0.5 rounded ${detail.regionMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+                              지역 {detail.regionMatch ? "+3 ✓" : "+0"}
+                            </span>
+                            <span className={`text-sm px-2 py-0.5 rounded ${detail.jobMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+                              직종 {detail.jobMatch ? "+2 ✓" : "+0"}
+                            </span>
+                            <span className={`text-sm px-2 py-0.5 rounded ${detail.careerMatch ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+                              경력 {detail.careerMatch ? "+1 ✓" : "+0"}
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
 
           {/* 더 보기 / 접기 */}
