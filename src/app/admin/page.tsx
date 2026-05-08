@@ -220,8 +220,8 @@ export default function AdminPage() {
 
   return (
     <div>
-      <h1 className="text-4xl font-bold mb-2 text-gray-900">담당자 대시보드</h1>
-      <p className="text-xl text-gray-500 mb-8">매칭 현황을 한눈에 확인하고 관리합니다.</p>
+      <h1 className="text-2xl sm:text-4xl font-bold mb-2 text-gray-900">담당자 대시보드</h1>
+      <p className="text-base sm:text-xl text-gray-500 mb-8">매칭 현황을 한눈에 확인하고 관리합니다.</p>
 
       {/* 집계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">

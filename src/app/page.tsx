@@ -23,14 +23,14 @@ export default function Home() {
           <h1
             className="font-bold leading-tight drop-shadow-lg text-white"
             style={{
-              fontSize: "6.4rem",
+              fontSize: "clamp(2.4rem, 9vw, 6.4rem)",
               fontFamily: "'HY견고딕', 'HYGothic', var(--font-black-han-sans), sans-serif",
             }}
           >
             시니어 일자리<br />매칭 서비스
           </h1>
           <p
-            className="text-2xl text-gray-200 max-w-xl"
+            className="text-lg sm:text-2xl text-gray-200 max-w-xl px-2"
             style={{ wordBreak: "keep-all" }}
           >
             프로필을 등록하면 맞춤 일자리를 자동으로 추천해 드립니다.

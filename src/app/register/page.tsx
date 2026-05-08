@@ -88,8 +88,8 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-4xl font-bold mb-2 text-gray-900">프로필 등록</h1>
-      <p className="text-xl text-gray-500 mb-8">
+      <h1 className="text-2xl sm:text-4xl font-bold mb-2 text-gray-900">프로필 등록</h1>
+      <p className="text-base sm:text-xl text-gray-500 mb-8">
         정보를 입력하시면 맞는 일자리를 찾아 드립니다.
       </p>
 

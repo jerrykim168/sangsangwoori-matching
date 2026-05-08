@@ -58,8 +58,8 @@ function SeniorPicker() {
 
   return (
     <div>
-      <h1 className="text-4xl font-bold mb-2 text-gray-900">추천 일자리 목록</h1>
-      <p className="text-xl text-gray-500 mb-8">추천을 확인할 시니어를 선택해 주세요.</p>
+      <h1 className="text-2xl sm:text-4xl font-bold mb-2 text-gray-900">추천 일자리 목록</h1>
+      <p className="text-base sm:text-xl text-gray-500 mb-8">추천을 확인할 시니어를 선택해 주세요.</p>
       <div className="flex flex-col gap-3">
         {seniors.map((s) => (
           <button
@@ -67,11 +67,8 @@ function SeniorPicker() {
             onClick={() => router.push(`/recommendations?senior_id=${s.id}`)}
             className="text-left border-2 border-gray-100 hover:border-blue-300 rounded-xl px-6 py-4 transition-colors bg-white shadow-sm"
           >
-            <span className="text-xl font-bold text-gray-900">{s.name}</span>
-            {s.phone && (
-              <span className="ml-3 text-lg text-blue-600 font-medium">{s.phone}</span>
-            )}
-            <span className="ml-3 text-lg text-gray-500">
+            <span className="text-lg sm:text-xl font-bold text-gray-900">{s.name}</span>
+            <span className="ml-3 text-base sm:text-lg text-gray-500">
               {s.region} · {s.desired_job} · 경력 {s.career_years ?? 0}년
             </span>
           </button>
@@ -128,18 +125,11 @@ function RecommendationsContent() {
 
   return (
     <div>
-      <h1 className="text-4xl font-bold mb-2 text-gray-900">추천 일자리 목록</h1>
-      <div className="text-xl text-gray-500 mb-8 flex flex-wrap items-center gap-2">
-        {senior && (
-          <>
-            <span className="font-semibold text-gray-700">{senior.name}</span>
-            {senior.phone && (
-              <span className="text-blue-600 font-medium">{senior.phone}</span>
-            )}
-          </>
-        )}
-        <span>님의 맞춤 추천 — 매칭 점수 높은 순서로 표시됩니다.</span>
-      </div>
+      <h1 className="text-2xl sm:text-4xl font-bold mb-2 text-gray-900">추천 일자리 목록</h1>
+      <p className="text-base sm:text-xl text-gray-500 mb-8">
+        {senior && <span className="font-semibold text-gray-700">{senior.name}</span>}{" "}
+        님의 맞춤 추천 — 매칭 점수 높은 순서로 표시됩니다.
+      </p>
 
       {matches.length === 0 ? (
         <Alert className="border-gray-300 bg-gray-50">
